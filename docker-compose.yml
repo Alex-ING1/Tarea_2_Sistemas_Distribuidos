@@ -1,6 +1,9 @@
 version: '3.8'
 
 services:
+
+  # ─── Infraestructura ────────────────────────────────────────────────────────
+
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
     environment:
@@ -8,21 +11,142 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
     ports:
       - "2181:2181"
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo ruok | nc localhost 2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     depends_on:
-      - zookeeper
+      zookeeper:
+        condition: service_healthy
     ports:
       - "9092:9092"
+      - "9101:9101"
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       KAFKA_NUM_PARTITIONS: 4
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 15s
+      timeout: 10s
+      retries: 8
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8090:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: tarea2
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
 
   redis_db:
     image: redis:alpine
     ports:
       - "6379:6379"
+    command: >
+      redis-server
+      --maxmemory ${MEMORIA_CACHE:-200mb}
+      --maxmemory-policy ${POLITICA_CACHE:-allkeys-lru}
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ─── Servicios de la aplicación ─────────────────────────────────────────────
+
+  generador_respuestas:
+    build: ./generarRespuesta
+    ports:
+      - "8001:8000"
+    environment:
+      LATENCIA_SIMULADA_MS: ${LATENCIA_SIMULADA_MS:-0}
+      LATENCIA_JITTER_MS: ${LATENCIA_JITTER_MS:-0}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/q1?zone_id=Z1&confidence_min=0.7', timeout=2).status==200 else 1)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 20s
+
+  servicio_metricas:
+    build: ./servicio_metricas
+    ports:
+      - "8080:8080"
+    environment:
+      DIRECCION_KAFKA: kafka:29092
+      TOPICO_PRINCIPAL: ${TOPICO_PRINCIPAL:-queries}
+      TOPICO_REINTENTO: ${TOPICO_REINTENTO:-queries_retry}
+      TOPICO_DLQ: ${TOPICO_DLQ:-queries_dlq}
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  # ─── Consumidor(es) Kafka ────────────────────────────────────────────────────
+  # Para escalar: docker-compose up --scale consumidor_kafka=N
+
+  consumidor_kafka:
+    build: ./consumidor_kafka
+    environment:
+      DIRECCION_KAFKA: kafka:29092
+      TOPICO_PRINCIPAL: ${TOPICO_PRINCIPAL:-queries}
+      TOPICO_REINTENTO: ${TOPICO_REINTENTO:-queries_retry}
+      TOPICO_DLQ: ${TOPICO_DLQ:-queries_dlq}
+      ID_GRUPO: ${ID_GRUPO:-consumer_group_1}
+      MAX_REINTENTOS: ${MAX_REINTENTOS:-3}
+      ESPERA_REINTENTO: ${ESPERA_REINTENTO:-2.0}
+      HOST_CACHE: redis_db
+      PUERTO_CACHE: 6379
+      TTL_CACHE: ${TTL_CACHE:-300}
+      URL_GENERADOR_RESPUESTAS: http://generador_respuestas:8000
+      URL_METRICAS: http://servicio_metricas:8080/event
+      TASA_FALLOS: ${TASA_FALLOS:-0}
+      # ID_CONSUMIDOR: si no se setea, el consumer usa su hostname (único por réplica).
+    depends_on:
+      kafka:
+        condition: service_healthy
+      redis_db:
+        condition: service_healthy
+      generador_respuestas:
+        condition: service_healthy
+      servicio_metricas:
+        condition: service_started
+    deploy:
+      replicas: ${NUM_CONSUMIDORES:-1}
+
+  # ─── Generador de Tráfico ────────────────────────────────────────────────────
+
+  generador_trafico:
+    build: ./GenerarTrafico
+    environment:
+      DIRECCION_KAFKA: kafka:29092
+      TOPICO_PRINCIPAL: ${TOPICO_PRINCIPAL:-queries}
+      NUM_CONSULTAS: ${NUM_CONSULTAS:-500}
+      TASA_CONSULTAS: ${TASA_CONSULTAS:-0.05}
+      SPIKE_HABILITADO: ${SPIKE_HABILITADO:-false}
+      SPIKE_MULTIPLICADOR: ${SPIKE_MULTIPLICADOR:-5}
+      SPIKE_INICIO: ${SPIKE_INICIO:-200}
+      SPIKE_DURACION: ${SPIKE_DURACION:-50}
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+volumes:
+  kafka_data:

@@ -1,0 +1,3 @@
+# Dependencias para los scripts del host (no para contenedores).
+# Instalar con: pip install -r scripts/requisitos.txt
+matplotlib>=3.7
