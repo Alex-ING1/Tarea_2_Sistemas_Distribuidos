@@ -1,0 +1,64 @@
+{
+  "tiempo_activo_seg": 60.1,
+  "total_procesadas": 800,
+  "aciertos_cache": 578,
+  "fallos_cache": 222,
+  "tasa_aciertos_pct": 72.25,
+  "throughput_consultas_seg": 0.0,
+  "throughput_promedio_seg": 82.34,
+  "latencia_procesamiento": {
+    "p50": 0.2859830856323242,
+    "p95": 233.5818648338318,
+    "avg": 43.34151744842529,
+    "min": 0.11372566223144531,
+    "max": 338.1938934326172,
+    "n": 800
+  },
+  "latencia_extremo_a_extremo": {
+    "p50": 2825.2177238464355,
+    "p95": 4117.539131641388,
+    "avg": 2718.8349637389183,
+    "min": 96.66681289672852,
+    "max": 4361.649036407471,
+    "n": 800
+  },
+  "reintentos": 0,
+  "tasa_reintentos_pct": 0.0,
+  "cantidad_dlq": 0,
+  "tasa_dlq_pct": 0.0,
+  "tasa_recuperacion_pct": 100.0,
+  "consultas_que_fallaron": 0,
+  "consultas_recuperadas": 0,
+  "consultas_perdidas_dlq": 0,
+  "tiempos_recuperacion_seg": {
+    "cantidad": 0,
+    "promedio": 0,
+    "maximo": 0
+  },
+  "eventos_por_consumidor": {
+    "04d5e3483d4e": 191,
+    "5b0469f0b587": 216,
+    "56624583d2be": 195,
+    "d3f148d8bce0": 198
+  },
+  "eventos_por_tipo_consulta": {
+    "q1": 164,
+    "q5": 160,
+    "q2": 157,
+    "q4": 170,
+    "q3": 149
+  },
+  "eventos_por_distribucion": {
+    "zipf": 400,
+    "uniforme": 400
+  },
+  "histograma_reintentos": {
+    "0": 800
+  },
+  "backlog": {
+    "queries": 0,
+    "queries_retry": 0,
+    "queries_dlq": 0
+  },
+  "timestamp": 1780157873.3619308
+}

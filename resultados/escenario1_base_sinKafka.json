@@ -1,0 +1,29 @@
+{
+    "politica_eviccion": "allkeys-lru",
+    "total_queries": 2000,
+    "cache_hits": 1852,
+    "cache_misses": 148,
+    "hit_rate": 0.926,
+    "throughput_qps": 48.23,
+    "evicted_keys": 0,
+    "eviction_rate_per_min": 0.0,
+    "cache_efficiency": 3.0262,
+    "latencias_ms": {
+        "zipf": {
+            "n": 1000,
+            "p50_ms": 7.478237152099609,
+            "p95_ms": 52.629721164703334,
+            "avg_ms": 11.48904538154602,
+            "min_ms": 3.971099853515625,
+            "max_ms": 105.49020767211914
+        },
+        "uniforme": {
+            "n": 1000,
+            "p50_ms": 7.342100143432617,
+            "p95_ms": 9.14057493209829,
+            "avg_ms": 9.547882795333862,
+            "min_ms": 3.911733627319336,
+            "max_ms": 68.0837631225586
+        }
+    }
+}
