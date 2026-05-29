@@ -2,19 +2,40 @@ from fastapi import FastAPI
 import pandas as pd
 import numpy as np
 import os
+import time
+import random
 
 app = FastAPI()
 
+LATENCIA_SIMULADA_MS = float(os.getenv("LATENCIA_SIMULADA_MS", "0"))
+LATENCIA_JITTER_MS   = float(os.getenv("LATENCIA_JITTER_MS", "0"))
+
+def simular_latencia():
+    if LATENCIA_SIMULADA_MS <= 0 and LATENCIA_JITTER_MS <= 0:
+        return
+    espera = LATENCIA_SIMULADA_MS + random.uniform(0, LATENCIA_JITTER_MS)
+    time.sleep(espera / 1000.0)
+
 datosCVS = pd.read_csv('FiltradoFinal.csv')
-zonasSantiago = {'Z1': 15.0, 'Z2': 25.0, 'Z3': 30.0, 'Z4': 10.0, 'Z5': 20.0}
+
+# Areas para el calculo de densidad
+zonasSantiago = {
+    'Z1': 15.0,
+    'Z2': 25.0,
+    'Z3': 30.0,
+    'Z4': 10.0,
+    'Z5': 20.0
+}
 
 @app.get("/q1")
 def q1_contarEdificios(zone_id: str, confidence_min: float = 0.0):
+    simular_latencia()
     filtro = datosCVS[(datosCVS['zone_id'] == zone_id) & (datosCVS['confidence'] >= confidence_min)]
     return len(filtro)
 
 @app.get("/q2")
 def q2_calcularArea(zone_id: str, confidence_min: float = 0.0):
+    simular_latencia()
     filtro = datosCVS[(datosCVS['zone_id'] == zone_id) & (datosCVS['confidence'] >= confidence_min)]
     areas = filtro['area_in_meters']
     if len(areas) == 0:
@@ -23,18 +44,33 @@ def q2_calcularArea(zone_id: str, confidence_min: float = 0.0):
 
 @app.get("/q3")
 def q3_calcularDensidad(zone_id: str, confidence_min: float = 0.0):
+    simular_latencia()
     filtro = datosCVS[(datosCVS['zone_id'] == zone_id) & (datosCVS['confidence'] >= confidence_min)]
+    contador = len(filtro)
     area_km2 = zonasSantiago.get(zone_id, 10.0)
-    return len(filtro) / area_km2
+    return contador / area_km2
 
 @app.get("/q4")
 def q4_compararDensidades(zone_a: str, zone_b: str, confidence_min: float = 0.0):
-    da = q3_calcularDensidad(zone_a, confidence_min)
-    db = q3_calcularDensidad(zone_b, confidence_min)
-    return {"zone_a": da, "zone_b": db, "winner": zone_a if da > db else zone_b}
+    simular_latencia()
+    densidadZona_A = q3_calcularDensidad(zone_a, confidence_min)   # ← sacar ["density"]
+    densidadZona_b = q3_calcularDensidad(zone_b, confidence_min)   # ← sacar ["density"]
+    ganador = zone_a if densidadZona_A > densidadZona_b else zone_b
+    return {"zone_a": densidadZona_A, "zone_b": densidadZona_b, "winner": ganador}
 
 @app.get("/q5")
 def q5_confidence_dist(zone_id: str, bins: int = 5):
+    simular_latencia()
     filtro = datosCVS[datosCVS['zone_id'] == zone_id]
-    counts, edges = np.histogram(filtro['confidence'], bins=bins, range=(0.0, 1.0))
-    return [{"bucket": i, "min": float(edges[i]), "max": float(edges[i+1]), "count": int(counts[i])} for i in range(bins)]
+    datosZona = filtro['confidence']
+    cantidadXgrupo, limitesIntervalo = np.histogram(datosZona, bins=bins, range=(0.0, 1.0))
+    
+    resultadoFinal = []
+    for i in range(bins):
+        resultadoFinal.append({
+            "bucket": i,
+            "min": float(limitesIntervalo[i]),
+            "max": float(limitesIntervalo[i+1]),
+            "count": int(cantidadXgrupo[i])
+        })
+    return resultadoFinal
