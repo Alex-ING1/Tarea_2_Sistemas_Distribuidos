@@ -1,0 +1,145 @@
+version: '3.8'
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - kafka-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "9092:9092"
+    networks:
+      - kafka-network
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions.sh", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7.0-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - kafka-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # SERVICIOS: Generador de Tráfico
+
+  generador-trafico:
+    build:
+      context: ./GenerarTrafico
+      dockerfile: Dockerfile
+    container_name: generador-trafico
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER: kafka:9092
+      TOPIC_MAIN: queries
+      NUM_QUERIES: 500
+      QUERY_RATE: 0.05
+      SPIKE_ENABLED: "false"
+      SPIKE_MULTIPLIER: 5
+      SPIKE_AT: 200
+      SPIKE_DURATION: 50
+    networks:
+      - kafka-network
+    volumes:
+      - ./GenerarTrafico/FiltradoFinal.csv:/app/FiltradoFinal.csv:ro
+
+  # SERVICIOS: Consumer de Respuestas 
+
+  generador-respuesta-1:
+    build:
+      context: ./generarRespuesta
+      dockerfile: Dockerfile
+    container_name: generador-respuesta-1
+    depends_on:
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER: kafka:9092
+      TOPIC_MAIN: queries
+      TOPIC_PROCESSED: queries-processed
+      TOPIC_DLQ: queries-dlq
+      KAFKA_GROUP_ID: consumer-group-1
+      CSV_PATH: /app/FiltradoFinal.csv
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    networks:
+      - kafka-network
+    volumes:
+      - ./generarRespuesta/FiltradoFinal.csv:/app/FiltradoFinal.csv:ro
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # SERVICIOS: Sistema de Métricas
+
+
+  metricas:
+    build:
+      context: ./metricas
+      dockerfile: Dockerfile
+    container_name: metricas
+    depends_on:
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER: kafka:9092
+      TOPIC_MAIN: queries
+      TOPIC_RETRY: queries-retry
+      TOPIC_DLQ: queries-dlq
+      KAFKA_GROUP_ID: grupo-consumidores
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      OUTPUT_FILE: /metricas/metricas.json
+    networks:
+      - kafka-network
+    volumes:
+      - ./metricas:/metricas
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  kafka-network:
+    driver: bridge
+
+volumes:
+  kafka-data:
+  zookeeper-data:
+  redis-data:
