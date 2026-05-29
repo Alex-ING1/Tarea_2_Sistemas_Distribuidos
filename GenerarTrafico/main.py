@@ -111,6 +111,11 @@ def generandoTrafico():
     productor.flush()
     print(f"[Productor] Listo. Total publicadas: {ccontadorConsultasPublicadas}")
 
+    
+@app.get("/health")
+def health():
+    return {"status": "ok"}e
+
 
 if __name__ == "__main__":
     time.sleep(15)
