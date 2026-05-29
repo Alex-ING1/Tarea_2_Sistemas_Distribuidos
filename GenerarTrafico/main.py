@@ -114,7 +114,7 @@ def generandoTrafico():
     
 @app.get("/health")
 def health():
-    return {"status": "ok"}e
+    return {"status": "ok"}
 
 
 if __name__ == "__main__":

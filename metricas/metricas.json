@@ -1,0 +1,56 @@
+{
+  "throughput_qps": 0.0,
+  "latencia_p50_ms": 0.0,
+  "latencia_p95_ms": 0.0,
+  "latencia_avg_ms": 0.0,
+  "latencia_max_ms": 0.0,
+  "latencia_min_ms": 0.0,
+  "total_consultas": 0,
+  "total_reintentos": 0,
+  "total_dlq": 0,
+  "consultas_recuperadas": 0,
+  "retry_rate_pct": 0,
+  "recovery_rate_pct": 0,
+  "dlq_rate_pct": 0,
+  "recovery_time_s": 1,
+  "cache_hit_rate_pct": 0,
+  "cache_evictions": 0,
+  "duracion_total_s": 1,
+  "backlog_snapshots": [
+    {
+      "timestamp": 1780088823.2054796,
+      "retry_acumulado": 0,
+      "dlq_acumulado": 0
+    },
+    {
+      "timestamp": 1780088828.205573,
+      "retry_acumulado": 0,
+      "dlq_acumulado": 0
+    },
+    {
+      "timestamp": 1780088833.2056737,
+      "retry_acumulado": 0,
+      "dlq_acumulado": 0
+    },
+    {
+      "timestamp": 1780088838.205765,
+      "retry_acumulado": 0,
+      "dlq_acumulado": 0
+    },
+    {
+      "timestamp": 1780088843.2058651,
+      "retry_acumulado": 0,
+      "dlq_acumulado": 0
+    },
+    {
+      "timestamp": 1780088848.2059855,
+      "retry_acumulado": 0,
+      "dlq_acumulado": 0
+    },
+    {
+      "timestamp": 1780088853.2061152,
+      "retry_acumulado": 0,
+      "dlq_acumulado": 0
+    }
+  ]
+}
